@@ -1,0 +1,21 @@
+Date,Product,Region,Salesperson,Revenue,Units,Cost,Profit
+2024-01-01,Laptop,North,John Smith,2500,2,1800,700
+2024-01-02,Desktop,South,Jane Doe,1800,1,1200,600
+2024-01-03,Monitor,East,Bob Johnson,450,3,300,150
+2024-01-04,Keyboard,West,Alice Brown,120,4,80,40
+2024-01-05,Mouse,North,John Smith,75,5,50,25
+2024-01-06,Laptop,South,Jane Doe,2500,2,1800,700
+2024-01-07,Desktop,East,Bob Johnson,3600,2,2400,1200
+2024-01-08,Monitor,West,Alice Brown,600,4,400,200
+2024-01-09,Keyboard,North,John Smith,150,5,100,50
+2024-01-10,Mouse,South,Jane Doe,90,6,60,30
+2024-01-11,Laptop,East,Bob Johnson,5000,4,3600,1400
+2024-01-12,Desktop,West,Alice Brown,1800,1,1200,600
+2024-01-13,Monitor,North,John Smith,750,5,500,250
+2024-01-14,Keyboard,South,Jane Doe,180,6,120,60
+2024-01-15,Mouse,East,Bob Johnson,105,7,70,35
+2024-01-16,Laptop,West,Alice Brown,3750,3,2700,1050
+2024-01-17,Desktop,North,John Smith,3600,2,2400,1200
+2024-01-18,Monitor,South,Jane Doe,450,3,300,150
+2024-01-19,Keyboard,East,Bob Johnson,90,3,60,30
+2024-01-20,Mouse,West,Alice Brown,60,4,40,20

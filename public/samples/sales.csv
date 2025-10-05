@@ -1,0 +1,17 @@
+Date,Product,Region,Revenue,Units,Category
+2024-01-15,Laptop,North,1200,3,Electronics
+2024-01-20,Mouse,South,25,15,Accessories
+2024-02-10,Keyboard,East,75,8,Accessories
+2024-02-18,Monitor,West,350,4,Electronics
+2024-03-05,Laptop,South,1150,2,Electronics
+2024-03-12,Headphones,North,80,12,Accessories
+2024-04-08,Mouse,East,30,20,Accessories
+2024-04-22,Monitor,North,400,5,Electronics
+2024-05-14,Laptop,West,1300,4,Electronics
+2024-06-03,Keyboard,South,70,10,Accessories
+2024-06-19,Monitor,East,380,6,Electronics
+2024-07-11,Headphones,West,90,15,Accessories
+2024-08-02,Laptop,North,1250,3,Electronics
+2024-08-25,Mouse,South,28,18,Accessories
+2024-09-07,Keyboard,East,72,9,Accessories
+2024-09-30,Monitor,West,365,4,Electronics

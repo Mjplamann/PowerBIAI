@@ -1,0 +1,16 @@
+Date,Campaign,Channel,Impressions,Clicks,Conversions,Spend,Revenue,ROI
+2024-01-01,Winter Sale,Social Media,50000,2500,125,500,3750,6.5
+2024-01-02,Winter Sale,Email,30000,3000,180,200,5400,26.0
+2024-01-03,Winter Sale,Search,25000,1875,94,750,2820,2.76
+2024-01-04,Brand Awareness,Display,100000,1000,20,1000,600,-0.4
+2024-01-05,Brand Awareness,Social Media,75000,3750,75,800,2250,1.81
+2024-01-06,Product Launch,Email,40000,4800,288,300,8640,27.8
+2024-01-07,Product Launch,Search,35000,2625,131,900,3930,3.37
+2024-01-08,Product Launch,Social Media,60000,3000,150,600,4500,6.5
+2024-01-09,Flash Sale,Email,25000,3750,300,150,9000,59.0
+2024-01-10,Flash Sale,Social Media,45000,2250,113,400,3390,7.48
+2024-01-11,Winter Sale,Display,80000,800,16,800,480,-0.4
+2024-01-12,Brand Awareness,Email,35000,3500,175,250,5250,20.0
+2024-01-13,Product Launch,Display,90000,900,18,900,540,-0.4
+2024-01-14,Flash Sale,Search,30000,2250,113,700,3390,3.84
+2024-01-15,Winter Sale,Social Media,55000,2750,138,550,4140,6.53
