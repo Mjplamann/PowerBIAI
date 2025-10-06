@@ -16,6 +16,7 @@ function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showSetupGuide, setShowSetupGuide] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [dashboardDimensions, setDashboardDimensions] = useState({ width: 1280, height: 720 });
 
   const handleFileUpload = async (text, name) => {
     setFileName(name);
@@ -120,30 +121,43 @@ function App() {
               />
             </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 space-y-6">
-                <ChatInterface
-                  messages={messages}
-                  onSendMessage={handleSendMessage}
-                  isLoading={isAnalyzing}
-                  inputValue={inputValue}
-                  setInputValue={setInputValue}
-                />
-                {showSetupGuide && (
-                  <SetupGuide
-                    dashboardSpec={dashboardSpec}
-                    csvData={csvData}
-                    fileName={fileName}
+            <div className="flex gap-0 h-[calc(100vh-200px)]">
+              <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+                <div className="p-4 border-b border-gray-200">
+                  <h2 className="text-lg font-semibold text-gray-800">AI Assistant</h2>
+                  <p className="text-sm text-gray-500">Describe your dashboard needs</p>
+                </div>
+                <div className="flex-1 overflow-hidden flex flex-col">
+                  <ChatInterface
+                    messages={messages}
+                    onSendMessage={handleSendMessage}
+                    isLoading={isAnalyzing}
+                    inputValue={inputValue}
+                    setInputValue={setInputValue}
                   />
-                )}
+                </div>
+                <div className="p-3 border-t border-gray-200">
+                  <QuickActions onAction={handleSendMessage} />
+                </div>
               </div>
 
-              <div className="space-y-6">
+              <div className="flex-1 overflow-auto bg-gray-50 p-6">
                 <DashboardPreview
                   dashboardSpec={dashboardSpec}
                   csvData={csvData}
+                  onUpdateSpec={setDashboardSpec}
+                  dimensions={dashboardDimensions}
+                  onDimensionsChange={setDashboardDimensions}
                 />
-                <QuickActions onAction={handleSendMessage} />
+                {showSetupGuide && (
+                  <div className="mt-6">
+                    <SetupGuide
+                      dashboardSpec={dashboardSpec}
+                      csvData={csvData}
+                      fileName={fileName}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </>

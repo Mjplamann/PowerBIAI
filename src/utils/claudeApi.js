@@ -26,13 +26,11 @@ export const analyzeData = async (csvData) => {
   
   // Add KPI cards for numeric columns
   numericColumns.slice(0, 3).forEach(col => {
-    const values = data.map(row => parseFloat(row[col])).filter(v => !isNaN(v));
-    const total = values.reduce((a, b) => a + b, 0);
     dashboardSpec.visuals.push({
       type: 'card',
       title: `Total ${col}`,
       metric: col,
-      value: total,
+      dataKey: col,
       format: 'number'
     });
   });
