@@ -7,15 +7,19 @@ export const analyzeData = async (csvData) => {
   
   // Generate intelligent dashboard spec based on data
   const numericColumns = headers.filter(header => {
-    const sample = data.slice(0, 10).map(row => row[header]);
-    return sample.some(val => !isNaN(parseFloat(val)));
+    const sample = data.slice(0, Math.min(20, data.length)).map(row => row[header]).filter(v => v !== '' && v !== null && v !== undefined);
+    if (sample.length === 0) return false;
+    const numericCount = sample.filter(val => !isNaN(parseFloat(val)) && val !== '').length;
+    return numericCount > sample.length * 0.7; // 70% must be numeric
   });
-  
+
   const dateColumns = headers.filter(header => {
-    const sample = data.slice(0, 10).map(row => row[header]);
-    return sample.some(val => !isNaN(Date.parse(val)) && /\d{1,4}[-/]\d{1,2}[-/]\d{1,4}/.test(val));
+    const sample = data.slice(0, Math.min(20, data.length)).map(row => row[header]).filter(v => v !== '' && v !== null && v !== undefined);
+    if (sample.length === 0) return false;
+    const dateCount = sample.filter(val => !isNaN(Date.parse(val)) && /\d{1,4}[-/]\d{1,2}[-/]\d{1,4}/.test(val)).length;
+    return dateCount > sample.length * 0.7; // 70% must be dates
   });
-  
+
   const categoryColumns = headers.filter(h => !numericColumns.includes(h) && !dateColumns.includes(h));
   
   const dashboardSpec = {
@@ -37,32 +41,52 @@ export const analyzeData = async (csvData) => {
   
   // Add line chart if date column exists
   if (dateColumns.length > 0 && numericColumns.length > 0) {
+    // Find a numeric column with actual variation (not all zeros)
+    const goodNumericCol = numericColumns.find(col => {
+      const values = data.slice(0, 20).map(row => parseFloat(row[col])).filter(v => !isNaN(v));
+      const nonZero = values.filter(v => v !== 0);
+      return nonZero.length > 0; // Has at least some non-zero values
+    }) || numericColumns[0];
+
     dashboardSpec.visuals.push({
       type: 'line',
-      title: `${numericColumns[0]} Over Time`,
+      title: `${goodNumericCol} Over Time`,
       xAxis: dateColumns[0],
-      yAxis: numericColumns[0],
-      dataKey: numericColumns[0]
+      yAxis: goodNumericCol,
+      dataKey: goodNumericCol
     });
   }
   
   // Add bar chart for categories
   if (categoryColumns.length > 0 && numericColumns.length > 0) {
+    // Use a numeric column with variation
+    const goodNumericCol = numericColumns.find(col => {
+      const values = data.slice(0, 20).map(row => parseFloat(row[col])).filter(v => !isNaN(v));
+      const nonZero = values.filter(v => v !== 0);
+      return nonZero.length > 0;
+    }) || numericColumns[0];
+
     dashboardSpec.visuals.push({
       type: 'bar',
-      title: `${numericColumns[0]} by ${categoryColumns[0]}`,
+      title: `${goodNumericCol} by ${categoryColumns[0]}`,
       xAxis: categoryColumns[0],
-      yAxis: numericColumns[0],
-      dataKey: numericColumns[0]
+      yAxis: goodNumericCol,
+      dataKey: goodNumericCol
     });
   }
-  
+
   // Add pie chart for distribution
   if (categoryColumns.length > 0 && numericColumns.length > 0) {
+    const goodNumericCol = numericColumns.find(col => {
+      const values = data.slice(0, 20).map(row => parseFloat(row[col])).filter(v => !isNaN(v));
+      const nonZero = values.filter(v => v !== 0);
+      return nonZero.length > 0;
+    }) || numericColumns[0];
+
     dashboardSpec.visuals.push({
       type: 'pie',
       title: `Distribution by ${categoryColumns[0]}`,
-      dataKey: numericColumns[0],
+      dataKey: goodNumericCol,
       nameKey: categoryColumns[0]
     });
   }
@@ -86,11 +110,29 @@ export const refineDesign = async (currentSpec, userMessage, conversationHistory
   const updatedSpec = JSON.parse(JSON.stringify(currentSpec)); // Deep clone
   const msg = userMessage.toLowerCase();
   let responseMessage = "I've updated the dashboard based on your feedback. The changes are now visible in the preview!";
+  let madeChanges = false;
+
+  // Handle questions and troubleshooting
+  if (msg.includes('why') || msg.includes('blank') || msg.includes('empty') || msg.includes('not showing')) {
+    const hasLineChart = updatedSpec.visuals.some(v => v.type === 'line' || v.type === 'area');
+    if (hasLineChart && (msg.includes('line') || msg.includes('trend') || msg.includes('time') || msg.includes('chart'))) {
+      responseMessage = `The line chart might be blank because:\n\n1. The data may have very few points\n2. Values might be zero or null\n3. Date formatting might need adjustment\n\nTry:\n- "Show all data" to remove filters\n- Adding a different chart type\n- Checking your CSV has non-zero values\n\nYou can also click the visual to change it to a different chart type!`;
+      return { message: responseMessage, dashboardSpec: updatedSpec };
+    }
+    responseMessage = `If visuals are blank, here are common causes:\n\n1. **Data has zeros**: Check your CSV for actual values\n2. **Wrong field mapping**: Try different visual types\n3. **Date format**: Dates should be consistent (MM/DD/YY or YYYY-MM-DD)\n4. **Filters applied**: Try "show all data"\n\nClick any visual to change its type, or use Quick Actions to add new ones!`;
+    return { message: responseMessage, dashboardSpec: updatedSpec };
+  }
+
+  if (msg.includes('help') || msg.includes('what can') || msg.includes('how do')) {
+    responseMessage = `I can help you with:\n\n📊 **Add Visuals**: "add a line chart", "add a pie chart", "add a gauge"\n🎨 **Change Colors**: "use vibrant colors", "use ocean colors"\n🔢 **Filter Data**: "show top 10", "show top 5"\n❌ **Remove Items**: "remove the last visual", "remove all pie charts"\n📝 **Rename**: "change title to Sales Dashboard"\n\nYou can also:\n- Click any visual to change its type\n- Drag corners to resize\n- Click "Colors" for custom hex codes`;
+    return { message: responseMessage, dashboardSpec: updatedSpec };
+  }
 
   // Color palette changes
   if (msg.includes('vibrant') || msg.includes('colorful')) {
     updatedSpec.colorPalette = 'vibrant';
     responseMessage = "Changed to vibrant color palette with bright, energetic colors!";
+    madeChanges = true;
   } else if (msg.includes('earthy') || msg.includes('natural')) {
     updatedSpec.colorPalette = 'earthy';
     responseMessage = "Switched to earthy tones for a natural, organic look.";
@@ -278,7 +320,18 @@ export const refineDesign = async (currentSpec, userMessage, conversationHistory
     if (titleMatch) {
       updatedSpec.title = titleMatch[1];
       responseMessage = `Changed dashboard title to "${titleMatch[1]}".`;
+      madeChanges = true;
     }
+  }
+
+  // Track if any visual changes were made
+  if (msg.includes('add') || msg.includes('remove')) {
+    madeChanges = true;
+  }
+
+  // If no changes were made and it wasn't a question, provide helpful feedback
+  if (!madeChanges && !msg.includes('why') && !msg.includes('help') && !msg.includes('blank')) {
+    responseMessage = `I didn't understand that command. Try:\n\n• "add a [chart type]" - Add visuals\n• "remove [type/last/first]" - Remove visuals\n• "use [color] colors" - Change theme\n• "show top 10" - Filter data\n• "help" - See all commands\n\nOr click visuals directly to edit them!`;
   }
 
   return {

@@ -104,6 +104,21 @@ const DashboardPreview = ({
     // Get data and apply topN filter if needed
     let chartData = csvData?.data?.slice(0, topN || 20) || [];
 
+    // Convert numeric fields to actual numbers for charts
+    if (chartData.length > 0 && dataKey) {
+      chartData = chartData.map(row => {
+        const newRow = { ...row };
+        // Convert the dataKey field to number if it's a string number
+        if (newRow[dataKey] && typeof newRow[dataKey] === 'string') {
+          const parsed = parseFloat(newRow[dataKey]);
+          if (!isNaN(parsed)) {
+            newRow[dataKey] = parsed;
+          }
+        }
+        return newRow;
+      });
+    }
+
     if (type === 'card') {
       const Icon = visual.metric?.toLowerCase().includes('revenue') || visual.metric?.toLowerCase().includes('amount') 
         ? DollarSign 
