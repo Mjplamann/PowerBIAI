@@ -6,7 +6,10 @@ import SetupGuide from './components/SetupGuide';
 import QuickActions from './components/QuickActions';
 import { parseCSV } from './utils/csvParser';
 import { analyzeData, refineDesign } from './utils/claudeApi';
-import { Sparkles, Download } from 'lucide-react';
+import { downloadCSV } from './utils/csvExporter';
+import { generateAllDAXMeasures } from './utils/daxGenerator';
+import { generatePowerBIPackage } from './utils/powerBIExportSimple';
+import { Sparkles, Download, FileDown, Code, Package } from 'lucide-react';
 
 function App() {
   const [csvData, setCsvData] = useState(null);
@@ -17,6 +20,13 @@ function App() {
   const [showSetupGuide, setShowSetupGuide] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [dashboardDimensions, setDashboardDimensions] = useState({ width: 1280, height: 720 });
+  const [customColors, setCustomColors] = useState({
+    background: '#f3f4f6',
+    cardBackground: '#ffffff',
+    primaryText: '#1f2937',
+    secondaryText: '#6b7280'
+  });
+  const [chartSizes, setChartSizes] = useState({});
 
   const handleFileUpload = async (text, name) => {
     setFileName(name);
@@ -65,13 +75,39 @@ function App() {
   };
 
   const exportDashboardSpec = () => {
-    const dataStr = JSON.stringify(dashboardSpec, null, 2);
+    const allMeasures = generateAllDAXMeasures(dashboardSpec);
+    const exportData = {
+      ...dashboardSpec,
+      daxMeasures: allMeasures,
+      dimensions: dashboardDimensions,
+      customColors: customColors,
+      chartSizes: chartSizes,
+      exportDate: new Date().toISOString(),
+      version: '1.0.0'
+    };
+
+    const dataStr = JSON.stringify(exportData, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
     link.download = 'dashboard-spec.json';
     link.click();
+  };
+
+  const handleDownloadCSV = () => {
+    downloadCSV(csvData, `cleaned_${fileName}`);
+  };
+
+  const handleExportToPowerBI = async () => {
+    await generatePowerBIPackage(
+      dashboardSpec,
+      csvData,
+      fileName,
+      customColors,
+      chartSizes,
+      dashboardDimensions
+    );
   };
 
   return (
@@ -98,17 +134,34 @@ function App() {
                 {dashboardSpec && (
                   <div className="flex gap-3">
                     <button
-                      onClick={() => setShowSetupGuide(!showSetupGuide)}
-                      className="btn-primary"
+                      onClick={handleExportToPowerBI}
+                      className="px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-xl font-semibold hover:from-yellow-600 hover:to-orange-600 transition flex items-center gap-2 shadow-lg"
+                      title="Export complete Power BI package"
                     >
-                      {showSetupGuide ? 'Hide' : 'Show'} Setup Guide
+                      <Package className="w-5 h-5" />
+                      Export to Power BI
+                    </button>
+                    <button
+                      onClick={handleDownloadCSV}
+                      className="px-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition flex items-center gap-2"
+                      title="Download cleaned CSV file"
+                    >
+                      <FileDown className="w-5 h-5" />
+                      CSV
+                    </button>
+                    <button
+                      onClick={() => setShowSetupGuide(!showSetupGuide)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition flex items-center gap-2"
+                    >
+                      <Code className="w-5 h-5" />
+                      {showSetupGuide ? 'Hide' : 'DAX'}
                     </button>
                     <button
                       onClick={exportDashboardSpec}
                       className="px-4 py-2 border-2 border-blue-600 text-blue-600 rounded-xl font-semibold hover:bg-blue-50 transition flex items-center gap-2"
                     >
                       <Download className="w-5 h-5" />
-                      Export
+                      JSON
                     </button>
                   </div>
                 )}
@@ -148,6 +201,10 @@ function App() {
                   onUpdateSpec={setDashboardSpec}
                   dimensions={dashboardDimensions}
                   onDimensionsChange={setDashboardDimensions}
+                  customColors={customColors}
+                  onCustomColorsChange={setCustomColors}
+                  chartSizes={chartSizes}
+                  onChartSizesChange={setChartSizes}
                 />
                 {showSetupGuide && (
                   <div className="mt-6">

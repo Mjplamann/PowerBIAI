@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, CheckCircle } from 'lucide-react';
 import CodeBlock from './CodeBlock';
-import { generateBasicMeasures, generateTimeIntelligence, generatePowerQueryM } from '../utils/daxGenerator';
+import { generateBasicMeasures, generateTimeIntelligence } from '../utils/daxGenerator';
+import { generatePowerQueryM } from '../utils/csvExporter';
 import { inferDataTypes, detectRelationships } from '../utils/csvParser';
 
 const SetupGuide = ({ dashboardSpec, csvData, fileName }) => {
@@ -13,7 +14,7 @@ const SetupGuide = ({ dashboardSpec, csvData, fileName }) => {
   const dataTypes = inferDataTypes(csvData.data, csvData.headers);
   const relationships = detectRelationships(csvData.data, csvData.headers);
   const basicMeasures = generateBasicMeasures(csvData.headers, dataTypes);
-  const powerQueryM = generatePowerQueryM(fileName, csvData.headers);
+  const powerQueryM = generatePowerQueryM(fileName, csvData.headers, csvData);
 
   const steps = [
     {
