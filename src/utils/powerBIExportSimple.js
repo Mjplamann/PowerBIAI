@@ -63,7 +63,7 @@ export const generatePowerBIPackage = async (dashboardSpec, csvData, fileName, c
   zip.file('custom_theme.json', JSON.stringify(themeJson, null, 2));
 
   // 8. Data Model Diagram (Markdown)
-  const dataModel = generateDataModelDiagram(csvData.headers, dataTypes);
+  const dataModel = generateDataModelDiagram(csvData.headers, columnTypes);
   zip.file('Data_Model.md', dataModel);
 
   // Download ZIP
@@ -174,7 +174,7 @@ const generateFieldMapping = (visual) => {
 /**
  * Generate comprehensive setup guide
  */
-const generateSetupGuide = (projectName, dashboardSpec, csvData, measures, dataTypes) => {
+const generateSetupGuide = (projectName, dashboardSpec, csvData, measures, columnTypes) => {
   return `# ${projectName} - Power BI Setup Guide
 
 ## 📦 What's in This Package
@@ -246,7 +246,7 @@ ${generateFieldMapping(v).map(f => `  - ${f.field} → ${f.slot}`).join('\n')}
 ### Columns (${csvData.headers.length} total)
 
 ${csvData.headers.slice(0, 15).map(h => {
-  const type = dataTypes[h];
+  const type = columnTypes[h];
   const icon = type === 'number' ? '🔢' : type === 'date' ? '📅' : '📝';
   return `- ${icon} **${h}** (${type})`;
 }).join('\n')}
@@ -440,7 +440,7 @@ const generatePowerBITheme = (customColors, dashboardSpec) => {
 /**
  * Generate data model diagram
  */
-const generateDataModelDiagram = (headers, dataTypes) => {
+const generateDataModelDiagram = (headers, columnTypes) => {
   return `# Data Model Structure
 
 ## Table: Data
@@ -450,7 +450,7 @@ const generateDataModelDiagram = (headers, dataTypes) => {
 │           Data Table                │
 ├─────────────────────────────────────┤
 ${headers.map(h => {
-  const type = dataTypes[h];
+  const type = columnTypes[h];
   const icon = type === 'number' ? '🔢' : type === 'date' ? '📅' : type === 'boolean' ? '✓' : '📝';
   return `│ ${icon} ${h.padEnd(30)} │`;
 }).join('\n')}
@@ -460,7 +460,7 @@ ${headers.map(h => {
 ## Column Details
 
 ${headers.map(h => {
-  const type = dataTypes[h];
+  const type = columnTypes[h];
   let powerBIType = 'Text';
   let aggregation = 'None';
 

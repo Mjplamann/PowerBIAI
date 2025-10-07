@@ -2,11 +2,22 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
 
+// DEBUG: Log API key status
+console.log('=== CLAUDE API INITIALIZATION ===');
+console.log('API Key present:', API_KEY ? 'YES ✓' : 'NO ✗');
+if (API_KEY) {
+  console.log('API Key length:', API_KEY.length);
+  console.log('API Key prefix:', API_KEY.substring(0, 20) + '...');
+}
+
 // Initialize Anthropic client
 const anthropic = API_KEY ? new Anthropic({
   apiKey: API_KEY,
   dangerouslyAllowBrowser: true // Note: In production, use a backend proxy
 }) : null;
+
+console.log('Anthropic client initialized:', anthropic ? 'YES ✓' : 'NO ✗');
+console.log('================================');
 
 /**
  * Analyze CSV data and generate dashboard specification
@@ -15,12 +26,18 @@ const anthropic = API_KEY ? new Anthropic({
 export const analyzeData = async (csvData) => {
   const { headers, data, rowCount, columnCount } = csvData;
 
+  console.log('\n🔍 analyzeData called');
+  console.log('Using:', anthropic ? 'REAL CLAUDE API ✓' : 'MOCK FALLBACK ✗');
+
   // If no API key, fall back to mock behavior
   if (!anthropic) {
+    console.warn('⚠️ No Anthropic client - using mock data');
     return mockAnalyzeData(csvData);
   }
 
   try {
+    console.log('📡 Calling Claude API...');
+    console.log('Dataset:', rowCount, 'rows ×', columnCount, 'columns');
     // For datasets > 1000 rows, send statistical summary + representative sample
     // For smaller datasets, send everything
     let dataPreview;
@@ -40,6 +57,7 @@ export const analyzeData = async (csvData) => {
       dataDescription = `Complete dataset (${rowCount} rows).`;
     }
 
+    const startTime = Date.now();
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 4000,
@@ -101,23 +119,31 @@ ${dataPreview}
       }]
     });
 
+    const duration = Date.now() - startTime;
+    console.log(`✅ Claude API response received (${duration}ms)`);
+
     // Parse Claude's response
     const responseText = message.content[0].text;
+    console.log('Response length:', responseText.length, 'characters');
+
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
 
     if (jsonMatch) {
       const dashboardSpec = JSON.parse(jsonMatch[0]);
+      console.log('✓ Valid JSON parsed, visuals:', dashboardSpec.visuals?.length);
       return {
         message: `I've analyzed your dataset with ${rowCount} rows and ${columnCount} columns. Created a professional dashboard with KPI cards, trend analysis, and categorical breakdowns optimized for Power BI.`,
         dashboardSpec
       };
     } else {
+      console.warn('⚠️ No valid JSON in Claude response, falling back to mock');
       // Fallback if Claude doesn't return valid JSON
       return mockAnalyzeData(csvData);
     }
 
   } catch (error) {
-    console.error('Claude API error:', error);
+    console.error('❌ Claude API error:', error);
+    console.error('Error details:', error.message);
     // Fallback to mock on error
     return mockAnalyzeData(csvData);
   }
@@ -129,12 +155,18 @@ ${dataPreview}
 export const refineDesign = async (currentSpec, userMessage, conversationHistory) => {
   const msg = userMessage.toLowerCase();
 
+  console.log('\n💬 refineDesign called');
+  console.log('User message:', userMessage);
+  console.log('Using:', anthropic ? 'REAL CLAUDE API ✓' : 'MOCK FALLBACK ✗');
+
   // If no API key, use mock behavior
   if (!anthropic) {
+    console.warn('⚠️ No Anthropic client - using mock refine');
     return mockRefineDesign(currentSpec, userMessage, conversationHistory);
   }
 
   try {
+    console.log('📡 Calling Claude API for chat refinement...');
     // Build conversation context
     const conversationContext = conversationHistory.slice(-5).map(item =>
       `${item.role === 'user' ? 'User' : 'Assistant'}: ${item.content}`
@@ -177,19 +209,26 @@ Return ONLY the JSON object.`
       }]
     });
 
+    console.log('✅ Claude API response received');
+
     const responseText = message.content[0].text;
+    console.log('Response length:', responseText.length, 'characters');
+
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
 
     if (jsonMatch) {
       const result = JSON.parse(jsonMatch[0]);
+      console.log('✓ Valid JSON parsed');
       return result;
     } else {
+      console.warn('⚠️ No valid JSON in Claude response, falling back to mock');
       // Fallback to mock
       return mockRefineDesign(currentSpec, userMessage, conversationHistory);
     }
 
   } catch (error) {
-    console.error('Claude API error:', error);
+    console.error('❌ Claude API error:', error);
+    console.error('Error details:', error.message);
     return mockRefineDesign(currentSpec, userMessage, conversationHistory);
   }
 };
