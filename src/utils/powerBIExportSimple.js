@@ -2,6 +2,8 @@ import JSZip from 'jszip';
 import { generateAllDAXMeasures } from './daxGenerator';
 import { cleanCSVData } from './csvExporter';
 import { inferDataTypes } from './csvParser';
+import { cleanDataForPowerBI, generatePowerQueryMCode, generateCleanedCSV } from './dataCleaningService';
+import { generateVisualizationMatchedDAX, formatDAXForExport, generateVisualSetupInstructions } from './visualMatchedDAX';
 
 /**
  * REALISTIC Power BI Export
@@ -19,28 +21,37 @@ import { inferDataTypes } from './csvParser';
 export const generatePowerBIPackage = async (dashboardSpec, csvData, fileName, customColors, chartSizes, dimensions) => {
   const zip = new JSZip();
   const projectName = (fileName || 'Dashboard').replace('.csv', '').replace(/[^a-zA-Z0-9]/g, '_');
-  const cleanedData = cleanCSVData(csvData);
-  const dataTypes = inferDataTypes(csvData.data, csvData.headers);
-  const allMeasures = generateAllDAXMeasures(dashboardSpec);
 
-  // 1. Cleaned CSV Data
-  const csvContent = generateCleanedCSV(cleanedData);
-  zip.file(`${projectName}_data.csv`, csvContent);
+  // STEP 1: Clean data for Power BI (proper types, formatting)
+  const cleanedDataFull = cleanDataForPowerBI(csvData);
+  const { columnTypes } = cleanedDataFull;
 
-  // 2. Power Query M Code for Import
-  const powerQueryM = generatePowerQueryM(projectName, csvData.headers, dataTypes);
+  // Generate cleaned CSV
+  const csvContent = generateCleanedCSV(cleanedDataFull);
+  zip.file(`${projectName}_cleaned.csv`, csvContent);
+
+  // STEP 2: Generate Power Query M Code with correct types
+  const powerQueryM = generatePowerQueryMCode(`${projectName}_cleaned.csv`, csvData.headers, columnTypes);
   zip.file('1_Import_Data.m', powerQueryM);
 
-  // 3. All DAX Measures (Copy-Paste Ready)
-  const daxFile = generateDAXFile(allMeasures);
+  // STEP 3: Generate DAX measures that EXACTLY match visualizations
+  const visualMatchedMeasures = generateVisualizationMatchedDAX(dashboardSpec, csvData, columnTypes);
+  const daxFile = formatDAXForExport(visualMatchedMeasures);
   zip.file('2_DAX_Measures.dax', daxFile);
 
-  // 4. Visual Configuration Guide (JSON)
+  // Also save measures as JSON for reference
+  zip.file('2_DAX_Measures.json', JSON.stringify(visualMatchedMeasures, null, 2));
+
+  // STEP 4: Generate EXACT visual recreation instructions
+  const visualSetupGuide = generateVisualSetupInstructions(dashboardSpec, columnTypes);
+  zip.file('3_Visual_Setup_Instructions.md', visualSetupGuide);
+
+  // Also include visual config JSON
   const visualConfig = generateVisualConfigGuide(dashboardSpec, customColors, dimensions);
   zip.file('3_Visual_Configuration.json', JSON.stringify(visualConfig, null, 2));
 
-  // 5. Step-by-Step Setup Guide
-  const setupGuide = generateSetupGuide(projectName, dashboardSpec, csvData, allMeasures, dataTypes);
+  // STEP 5: Generate comprehensive setup guide
+  const setupGuide = generateEnhancedSetupGuide(projectName, dashboardSpec, csvData, visualMatchedMeasures, columnTypes);
   zip.file('README.md', setupGuide);
 
   // 6. Quick Reference Card
@@ -541,5 +552,175 @@ No relationships defined (single table model).
 If you have multiple tables, create relationships in:
 **Modeling** tab → **Manage Relationships**
 
+`;
+};
+
+/**
+ * Generate enhanced setup guide with exact visual instructions
+ */
+const generateEnhancedSetupGuide = (projectName, dashboardSpec, csvData, measures, columnTypes) => {
+  return `# ${projectName} - Complete Power BI Setup Guide
+
+## 🎯 Purpose
+
+This package contains **everything needed** to recreate your dashboard EXACTLY as shown in the web preview.
+
+## 📦 Package Contents
+
+1. **${projectName}_cleaned.csv** - Cleaned, Power BI-ready data (${csvData.rowCount.toLocaleString()} rows)
+2. **1_Import_Data.m** - Power Query M code with correct data types
+3. **2_DAX_Measures.dax** - All DAX measures matching your visualizations
+4. **2_DAX_Measures.json** - Measure metadata (visual mapping, usage)
+5. **3_Visual_Setup_Instructions.md** - Step-by-step visual recreation guide
+6. **3_Visual_Configuration.json** - Technical specification
+7. **custom_theme.json** - Color theme matching your preview
+8. **Data_Model.md** - Column documentation
+9. **QUICK_START.md** - 3-minute quick start
+
+---
+
+## ⚡ Quick Start (5 Minutes)
+
+### Step 1: Import Data (2 minutes)
+
+1. Open **Power BI Desktop**
+2. Click **Get Data** → **Text/CSV**
+3. Select **${projectName}_cleaned.csv**
+4. Click **Load** (do NOT click Transform Data yet)
+
+The data will load with automatic type detection. To ensure correct types:
+
+5. Click **Transform Data** in the ribbon
+6. In Power Query Editor, click **Advanced Editor**
+7. **Copy and paste** the entire contents of **1_Import_Data.m**
+8. Click **Done** → **Close & Apply**
+
+✅ Your data is now properly imported with correct types!
+
+### Step 2: Create DAX Measures (1 minute)
+
+1. Open **2_DAX_Measures.dax** in a text editor
+2. **Copy each measure** (they're clearly labeled)
+3. In Power BI: **Modeling** tab → **New Measure**
+4. **Paste the formula** and press Enter
+5. Repeat for each measure (${measures.length} total)
+
+💡 **Tip:** Measures are organized by visual type for easy reference
+
+✅ All measures created!
+
+### Step 3: Create Visuals (2 minutes)
+
+Open **3_Visual_Setup_Instructions.md** and follow the step-by-step instructions for each visual.
+
+Each instruction tells you:
+- Which visual type to add
+- Which fields/measures to drag where
+- Exact titles and formatting
+
+✅ Dashboard complete!
+
+---
+
+## 📊 Visual Summary
+
+Your dashboard contains **${dashboardSpec.visuals.length} visualizations**:
+
+${dashboardSpec.visuals.map((v, idx) => `${idx + 1}. **${v.title}** - ${v.type.charAt(0).toUpperCase() + v.type.slice(1)}`).join('\n')}
+
+---
+
+## 🎨 Applying the Color Theme
+
+1. In Power BI Desktop: **View** tab → **Themes** → **Browse for themes**
+2. Select **custom_theme.json**
+3. Your dashboard will match the preview colors!
+
+---
+
+## 🔍 Data Quality
+
+**Dataset Statistics:**
+- Total Rows: ${csvData.rowCount.toLocaleString()}
+- Total Columns: ${csvData.columnCount}
+- Data Types Detected:
+${Object.entries(columnTypes).slice(0, 10).map(([col, type]) => `  - ${col}: ${type}`).join('\n')}
+
+The cleaned CSV includes:
+- ✅ Standardized date formats (YYYY-MM-DD)
+- ✅ Proper numeric types
+- ✅ Trimmed text values
+- ✅ Null handling
+
+---
+
+## 💡 DAX Measures Explained
+
+All ${measures.length} measures are specifically created to match your visualizations:
+
+${measures.slice(0, 5).map(m => `### ${m.name}
+- **Formula:** \`${m.formula}\`
+- **Used in:** ${m.visualTitle}
+- **Visual Type:** ${m.visualType}
+- **How to use:** ${m.usage}
+`).join('\n')}
+
+${measures.length > 5 ? `\n... and ${measures.length - 5} more measures (see 2_DAX_Measures.dax for complete list)\n` : ''}
+
+---
+
+## 🎯 Exact Visual Matching
+
+Every visual in your dashboard has:
+1. **Exact DAX measure** - Named to match the visual
+2. **Field mapping** - Specified in 3_Visual_Setup_Instructions.md
+3. **Formatting** - Colors from custom_theme.json
+
+**Result:** Your Power BI dashboard will look EXACTLY like the web preview!
+
+---
+
+## ❓ Troubleshooting
+
+**Q: Visuals show "Can't display the visual"**
+A: Make sure you've created all DAX measures from step 2
+
+**Q: Colors don't match**
+A: Apply the custom_theme.json file (View → Themes → Browse)
+
+**Q: Data types are wrong**
+A: Use the Power Query M code from 1_Import_Data.m (see Step 1)
+
+**Q: Numbers show too many decimals**
+A: In each visual, click **Format** → **Values** → Set decimal places to 0 or 2
+
+---
+
+## 🚀 Next Steps
+
+After recreating the dashboard:
+
+1. **Publish** to Power BI Service (Home → Publish)
+2. **Set up refresh** (if needed) in Power BI Service
+3. **Share** with your team
+4. **Create drill-throughs** (optional - right-click on visual → Drill through)
+5. **Add bookmarks** (optional - View → Bookmarks pane)
+
+---
+
+## 📞 Support
+
+For detailed instructions on each visual, see:
+- **3_Visual_Setup_Instructions.md** - Step-by-step visual creation
+- **3_Visual_Configuration.json** - Technical specifications
+
+---
+
+**Generated:** ${new Date().toLocaleDateString()}
+**Dashboard:** ${dashboardSpec.title}
+**Visuals:** ${dashboardSpec.visuals.length}
+**Measures:** ${measures.length}
+
+🎉 **You're ready to build your dashboard in Power BI!**
 `;
 };

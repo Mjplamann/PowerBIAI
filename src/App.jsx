@@ -5,7 +5,7 @@ import DashboardPreview from './components/DashboardPreview';
 import SetupGuide from './components/SetupGuide';
 import QuickActions from './components/QuickActions';
 import { parseCSV } from './utils/csvParser';
-import { analyzeData, refineDesign } from './utils/claudeApi';
+import { analyzeData, refineDesign, generateComprehensiveDAX, analyzeDataQuality } from './utils/claudeApi';
 import { downloadCSV } from './utils/csvExporter';
 import { generateAllDAXMeasures } from './utils/daxGenerator';
 import { generatePowerBIPackage } from './utils/powerBIExportSimple';
@@ -27,6 +27,10 @@ function App() {
     secondaryText: '#6b7280'
   });
   const [chartSizes, setChartSizes] = useState({});
+  const [dataQualityReport, setDataQualityReport] = useState(null);
+  const [comprehensiveDAX, setComprehensiveDAX] = useState(null);
+  const [showDataQuality, setShowDataQuality] = useState(false);
+  const [isGeneratingDAX, setIsGeneratingDAX] = useState(false);
 
   const handleFileUpload = async (text, name) => {
     setFileName(name);
@@ -100,14 +104,19 @@ function App() {
   };
 
   const handleExportToPowerBI = async () => {
-    await generatePowerBIPackage(
-      dashboardSpec,
-      csvData,
-      fileName,
-      customColors,
-      chartSizes,
-      dashboardDimensions
-    );
+    try {
+      await generatePowerBIPackage(
+        dashboardSpec,
+        csvData,
+        fileName,
+        customColors,
+        chartSizes,
+        dashboardDimensions
+      );
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert(`Export failed: ${error.message}. Check console for details.`);
+    }
   };
 
   return (

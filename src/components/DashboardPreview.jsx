@@ -225,12 +225,28 @@ const DashboardPreview = ({
 
     // Line Chart
     if (type === 'line') {
+      // Format dates for better display
+      const formattedData = chartData.map(row => {
+        const newRow = { ...row };
+        if (xAxis && row[xAxis]) {
+          const dateVal = row[xAxis];
+          // Try to parse as date
+          const parsed = new Date(dateVal);
+          if (!isNaN(parsed.getTime())) {
+            newRow[`${xAxis}_formatted`] = parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          } else {
+            newRow[`${xAxis}_formatted`] = dateVal;
+          }
+        }
+        return newRow;
+      });
+
       return (
         <ChartWrapper key={idx}>
           <ResponsiveContainer width="100%" height={height}>
-            <LineChart data={chartData}>
+            <LineChart data={formattedData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey={xAxis} angle={-45} textAnchor="end" height={80} />
+              <XAxis dataKey={`${xAxis}_formatted`} angle={-45} textAnchor="end" height={80} />
               <YAxis />
               <Tooltip />
               <Legend />
@@ -259,12 +275,26 @@ const DashboardPreview = ({
       );
     }
 
-    // Bar Chart (Horizontal)
+    // Bar Chart (Horizontal) - Aggregate by category
     if (type === 'bar') {
+      // Aggregate data by xAxis category
+      const fullData = csvData?.data || [];
+      const aggregated = {};
+      fullData.forEach(row => {
+        const key = row[xAxis];
+        const value = parseFloat(row[dataKey]) || 0;
+        aggregated[key] = (aggregated[key] || 0) + value;
+      });
+      const barData = Object.entries(aggregated)
+        .map(([name, value]) => ({ [xAxis]: name, [dataKey]: value }))
+        .filter(item => item[dataKey] > 0)
+        .sort((a, b) => b[dataKey] - a[dataKey])
+        .slice(0, topN || 10);
+
       return (
         <ChartWrapper key={idx}>
           <ResponsiveContainer width="100%" height={height}>
-            <BarChart data={chartData} layout="vertical">
+            <BarChart data={barData} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" />
               <YAxis dataKey={xAxis} type="category" width={100} />
@@ -277,12 +307,26 @@ const DashboardPreview = ({
       );
     }
 
-    // Column Chart (Vertical Bar)
+    // Column Chart (Vertical Bar) - Aggregate by category
     if (type === 'column' || type === 'clustered-bar') {
+      // Aggregate data by xAxis category
+      const fullData = csvData?.data || [];
+      const aggregated = {};
+      fullData.forEach(row => {
+        const key = row[xAxis];
+        const value = parseFloat(row[dataKey]) || 0;
+        aggregated[key] = (aggregated[key] || 0) + value;
+      });
+      const columnData = Object.entries(aggregated)
+        .map(([name, value]) => ({ [xAxis]: name, [dataKey]: value }))
+        .filter(item => item[dataKey] > 0)
+        .sort((a, b) => b[dataKey] - a[dataKey])
+        .slice(0, topN || 10);
+
       return (
         <ChartWrapper key={idx}>
           <ResponsiveContainer width="100%" height={height}>
-            <BarChart data={chartData}>
+            <BarChart data={columnData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey={xAxis} angle={-45} textAnchor="end" height={80} />
               <YAxis />
@@ -322,16 +366,19 @@ const DashboardPreview = ({
 
     // Pie & Donut Charts
     if (type === 'pie' || type === 'donut') {
+      // Use ALL data for pie charts (not limited by chartData slice)
+      const fullData = csvData?.data || [];
       const aggregated = {};
-      chartData.forEach(row => {
+      fullData.forEach(row => {
         const key = row[nameKey];
         const value = parseFloat(row[dataKey]) || 0;
         aggregated[key] = (aggregated[key] || 0) + value;
       });
       const pieData = Object.entries(aggregated)
         .map(([name, value]) => ({ name, value }))
+        .filter(item => item.value > 0) // Only show non-zero slices
         .sort((a, b) => b.value - a.value)
-        .slice(0, topN || 8);
+        .slice(0, topN || 10); // Show top 10 by default
 
       return (
         <ChartWrapper key={idx}>
@@ -655,6 +702,21 @@ const DashboardPreview = ({
         {showColorPicker && (
           <div className="mt-4 p-4 bg-gray-50 rounded-lg">
             <h3 className="text-sm font-semibold mb-3">Custom Colors</h3>
+
+            {/* Current Palette Hex Codes */}
+            <div className="mb-4 p-3 bg-white rounded border">
+              <h4 className="text-xs font-semibold mb-2 text-gray-700">Current Palette ({dashboardSpec.colorPalette || 'corporate'})</h4>
+              <div className="grid grid-cols-4 gap-2">
+                {colors.map((color, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded border border-gray-300" style={{ backgroundColor: color }}></div>
+                    <code className="text-xs font-mono text-gray-600">{color}</code>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">💡 Copy these hex codes to use in Power BI themes</p>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium mb-2">Dashboard Background</label>
